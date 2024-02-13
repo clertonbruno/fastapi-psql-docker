@@ -5,7 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 SQL_ALCHEMY_DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://postgres_user:s3cr3t@db/inventory_db"
+    "DATABASE_URL", "postgresql://postgres:s3cr3t@db/inventory_db"
 )
 
 engine = create_engine(SQL_ALCHEMY_DATABASE_URL)
