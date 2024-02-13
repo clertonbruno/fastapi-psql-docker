@@ -3,5 +3,25 @@ version: "3"
 services:
   api:
     build: .
+    depends_on:
+      - db
+    volumes:
+      - ./:/code:ro
+    environment:
+      - DATABASE_UR:postgres://postgres_user:s3cr3t@db:5432/inventory_db
     ports:
       - "8000:8000"
+
+  db:
+    image: postgres:alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    expose:
+      - "5432"
+    environment:
+      - POSTGRES_USE:postgres_user
+      - POSTGRES_PASSWOR:s3cr3t
+      - POSTGRES_DB:inventory_db
+
+volumes:
+  postgres_data:
