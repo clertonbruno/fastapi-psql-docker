@@ -2,8 +2,10 @@ from fastapi import FastAPI
 
 import models
 from database import engine
+from routes.products import router as products_router
 
 app = FastAPI()
+app.include_router(products_router)
 
 models.Base.metadata.create_all(bind=engine)
 
