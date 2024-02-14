@@ -1,10 +1,12 @@
-from os import environ as os_environ
+from os import getenv
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-SQL_ALCHEMY_DATABASE_URL = os_environ["DATABASE_URL"]
+SQL_ALCHEMY_DATABASE_URL = getenv(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:s3cr3t@localhost:5432/inventory_db"
+)
 
 engine = create_async_engine(SQL_ALCHEMY_DATABASE_URL)
 
