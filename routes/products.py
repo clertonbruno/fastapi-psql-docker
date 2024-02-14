@@ -1,11 +1,11 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-import models
 import schema
-from database import get_db
+from database import get_async_db
+from routes.services.product_service import ProductService
 
 router = APIRouter(
     prefix="/products",
@@ -13,119 +13,98 @@ router = APIRouter(
 )
 
 
+# Dependency to get product service
+def get_product_service(db: AsyncSession = Depends(get_async_db)) -> ProductService:
+    return ProductService(db)
+
+
 @router.get("/", response_model=List[schema.ProductBase])
-def read_products(db: Session = Depends(get_db)):
-    products = db.query(models.Product).all()
-    return products
+async def read_products(service: ProductService = Depends(get_product_service)):
+    """
+    Retrieve a list of products.
+
+    Returns:
+        List[schema.ProductBase]: A list of product objects.
+    """
+    return await service.list_products()
+
+
+@router.get("/{id}", response_model=schema.ProductBase)
+async def get_product(id: str, service: ProductService = Depends(get_product_service)):
+    """
+    Retrieve a product by its ID.
+
+    Args:
+        id (str): The ID of the product to retrieve.
+        service (ProductService, optional): The product service dependency. Defaults to Depends(get_product_service).
+
+    Returns:
+        schema.ProductBase: The retrieved product.
+
+    Raises:
+        HTTPException: If the product with the specified ID is not found.
+    """
+    return await service.get_product(int(id))
 
 
 @router.post(
     "/", status_code=status.HTTP_201_CREATED, response_model=schema.ProductBase
 )
-def create_product(request: schema.ProductCreate, db: Session = Depends(get_db)):
+async def create_product(
+    request: schema.ProductCreate,
+    service: ProductService = Depends(get_product_service),
+):
     """
-    Create a new product in the database.
+    Create a new product.
 
     Args:
-        request (schema.ProductCreate): The request object containing the product details.
-        db (Session, optional): The database session. Defaults to Depends(get_db).
+        request (schema.ProductCreate): The product data to be created.
+        service (ProductService, optional): The product service dependency. Defaults to Depends(get_product_service).
 
     Returns:
-        models.Product: The newly created product.
+        schema.ProductBase: The created product.
     """
-    stripped_name = request.name.strip()
-    parsed_sku = request.sku.strip().lower()
-    existing_product = (
-        db.query(models.Product)
-        .filter(
-            models.Product.name == stripped_name or models.Product.sku == parsed_sku
-        )
-        .first()
-    )
-    if existing_product:
-        raise HTTPException(
-            status_code=400,
-            detail="A product with the same name or SKU already exists",
-        )
-    new_product = models.Product(
-        name=stripped_name,
-        sku=parsed_sku,
-        quantity=request.quantity,
-        is_active=True,
-        price=request.price,
-        category_id=request.category_id,
-    )
-    db.add(new_product)
-    db.commit()
-    db.refresh(new_product)
-    return new_product
+    return await service.create_product(request)
 
 
 @router.patch("/{id}", response_model=schema.ProductBase)
-def update_product(
-    id: int, request: schema.ProductUpdate, db: Session = Depends(get_db)
+async def update_product(
+    id: int,
+    request: schema.ProductUpdate,
+    service: ProductService = Depends(get_product_service),
 ):
     """
-    Update a product in the database.
+    Update a product by its ID.
 
     Args:
-        id (int): The ID of the product to update.
-        request (schema.ProductBase): The updated product data.
-        db (Session, optional): The database session. Defaults to Depends(get_db).
+        id (int): The ID of the product to be updated.
+        request (schema.ProductUpdate): The product data to be updated.
+        service (ProductService, optional): The product service dependency. Defaults to Depends(get_product_service).
 
     Returns:
-        models.Product: The updated product.
+        schema.ProductBase: The updated product.
+
+    Raises:
+        HTTPException: If the product with the specified ID is not found.
     """
-    product = db.query(models.Product).filter(models.Product.id == id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail=f"Product with id {id} not found")
-    request_payload = request.model_dump()
-    for key, value in request_payload.items():
-        if value:
-            if key == "name":
-                setattr(product, key, value.strip())
-            elif key == "sku":
-                setattr(product, key, value.strip().lower())
-            setattr(product, key, value)
-    db.commit()
-    db.refresh(product)
-    return product
-
-
-@router.get("/{id}", response_model=schema.ProductBase)
-def get_product(id: str, db: Session = Depends(get_db)):
-    """
-    Get a product from the database.
-
-    Args:
-        id (str): The ID of the product to retrieve. Because Pydantic automatically
-        treats path parameter as a string, we use str instead of int.
-        db (Session, optional): The database session. Defaults to Depends(get_db).
-
-    Returns:
-        models.Product: The product.
-    """
-    product = db.query(models.Product).filter(models.Product.id == int(id)).first()
-    if not product:
-        raise HTTPException(status_code=404, detail=f"Product with id {id} not found")
-    return product
+    return await service.update_product(id, request)
 
 
 @router.delete("/{id}", response_model=schema.ProductBase)
-def delete_product(id: str, db: Session = Depends(get_db)):
+async def delete_product(
+    id: str, service: ProductService = Depends(get_product_service)
+):
     """
-    Delete a product from the database.
+    Delete a product by its ID.
 
     Args:
-        id (str): The ID of the product to delete.
-        db (Session, optional): The database session. Defaults to Depends(get_db).
+        id (str): The ID of the product to be deleted.
+        service (ProductService, optional): The product service dependency. Defaults to Depends(get_product_service).
 
     Returns:
-        models.Product: The deleted product.
+        schema.ProductBase: The deleted product.
+
+    Raises:
+        HTTPException: If the product with the specified ID is not found.
     """
-    product = db.query(models.Product).filter(models.Product.id == int(id)).first()
-    if not product:
-        raise HTTPException(status_code=404, detail=f"Product with id {id} not found")
-    db.delete(product)
-    db.commit()
-    return product
+    return await service.delete_product(int(id))

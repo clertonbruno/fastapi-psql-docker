@@ -1,13 +1,18 @@
 from fastapi import FastAPI
 
 import models
-from database import engine
+from database import create_tables, engine
 from routes.products import router as products_router
 
 app = FastAPI()
 app.include_router(products_router)
 
-models.Base.metadata.create_all(bind=engine)
+# models.Base.metadata.create_all(bind=engine)
+
+
+@app.on_event("startup")
+async def startup():
+    await create_tables()
 
 
 @app.get("/")
