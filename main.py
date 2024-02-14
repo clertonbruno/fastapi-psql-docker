@@ -15,6 +15,6 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.get("/products/{product_id}")
+@app.get("/products/{id}")
 async def print_product_info(id: str):
     return {"message": f"Product id: {id}"}

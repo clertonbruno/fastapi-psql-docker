@@ -19,7 +19,7 @@ class Product(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, nullable=False)
-    name = Column(String, nullable=False)
+    name = Column(String, unique=True, nullable=False)
     sku = Column(String, unique=True, nullable=False)
     quantity = Column(Integer, nullable=False, server_default=text("'0'"))
     is_active = Column(Boolean, nullable=False, server_default=text("true"))
